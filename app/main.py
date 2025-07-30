@@ -2,6 +2,8 @@ import streamlit as st
 import joblib
 from app.suggestions import get_suggestion
 import os
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
 
 # Load model and encoder
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "random_forest_model.pkl")
@@ -37,6 +39,17 @@ if st.button("Detect Stress"):
         # Make prediction
         pred_encoded = model.predict(input_data)[0]
         stress_level = label_encoder.inverse_transform([pred_encoded])[0]
+        from datetime import datetime
+
+        # Save result in session history
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        st.session_state['history'].append({
+            "Timestamp": timestamp,
+            "Heart Rate": hr,
+            "SpO2": spo2,
+            "Stress Level": stress_level
+        })
+
 
         # Display result
         st.subheader(f"Stress Level: {stress_level}")
