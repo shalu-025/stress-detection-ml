@@ -142,13 +142,39 @@ def main():
     with col5:
         st.header("📤 Export")
         if st.session_state.session_history:
-            if st.button("Export to CSV"):
-                export_history(st.session_state.session_history, "csv")
-                st.success("Exported to stress_history.csv")
+            # CSV Export
+            try:
+                csv_data, csv_filename = export_history(st.session_state.session_history, "csv")
+                if csv_data and csv_filename:
+                    st.download_button(
+                        label="📊 Download CSV",
+                        data=csv_data,
+                        file_name=csv_filename,
+                        mime="text/csv",
+                        help="Download session history as CSV file"
+                    )
+                else:
+                    st.error("Failed to generate CSV export")
+            except Exception as e:
+                st.error(f"Error generating CSV: {str(e)}")
             
-            if st.button("Export to PDF"):
-                export_history(st.session_state.session_history, "pdf")
-                st.success("Exported to stress_report.pdf")
+            # PDF Export
+            try:
+                pdf_data, pdf_filename = export_history(st.session_state.session_history, "pdf")
+                if pdf_data and pdf_filename:
+                    st.download_button(
+                        label="📄 Download PDF",
+                        data=pdf_data,
+                        file_name=pdf_filename,
+                        mime="application/pdf",
+                        help="Download session history as PDF report"
+                    )
+                else:
+                    st.error("Failed to generate PDF export")
+            except Exception as e:
+                st.error(f"Error generating PDF: {str(e)}")
+        else:
+            st.info("No session history available for export")
 
 def display_results(results):
     """Display analysis results"""

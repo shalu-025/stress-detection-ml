@@ -1,0 +1,2 @@
+timestamp,stress_level,confidence,heart_rate,spo2,temperature,age,image_score,audio_score
+2025-08-01 07:38:32.281047,medium,0.5,120.0,96.0,38.1,21.0,,

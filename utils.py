@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 import pandas as pd
 from fpdf import FPDF
+import streamlit as st
 
 def setup_logging(level: str = 'INFO') -> logging.Logger:
     """Setup logging configuration"""
@@ -53,11 +54,11 @@ def log_session(logger: logging.Logger, session_data: Dict[str, Any]):
         logger.error(f"Error logging session: {e}")
 
 def export_history(session_history: List[Dict[str, Any]], format_type: str = "csv"):
-    """Export session history to file"""
+    """Export session history to file and return data for download"""
     try:
         if not session_history:
             print("No session history to export")
-            return
+            return None, None
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
@@ -80,8 +81,8 @@ def export_history(session_history: List[Dict[str, Any]], format_type: str = "cs
             
             df = pd.DataFrame(df_data)
             filename = f"stress_history_{timestamp}.csv"
-            df.to_csv(filename, index=False)
-            print(f"Session history exported to {filename}")
+            csv_data = df.to_csv(index=False)
+            return csv_data, filename
             
         elif format_type.lower() == "pdf":
             # Create PDF report
@@ -122,14 +123,26 @@ def export_history(session_history: List[Dict[str, Any]], format_type: str = "cs
                 pdf.cell(0, 8, f'{i+1}. {timestamp} - {stress_level} (Confidence: {confidence:.2f})', ln=True)
             
             filename = f"stress_report_{timestamp}.pdf"
-            pdf.output(filename)
-            print(f"Session history exported to {filename}")
+            try:
+                pdf_data = pdf.output(dest='S').encode('latin-1')
+                return pdf_data, filename
+            except Exception as e:
+                print(f"Error encoding PDF: {e}")
+                # Fallback: try UTF-8 encoding
+                try:
+                    pdf_data = pdf.output(dest='S').encode('utf-8')
+                    return pdf_data, filename
+                except Exception as e2:
+                    print(f"Error with UTF-8 encoding: {e2}")
+                    return None, None
             
         else:
             print(f"Unsupported export format: {format_type}")
+            return None, None
             
     except Exception as e:
         print(f"Error exporting history: {e}")
+        return None, None
 
 def generate_session_summary(sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generate summary statistics from session data"""
