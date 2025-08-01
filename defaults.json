@@ -1,0 +1,10 @@
+{
+  "heart_rate": 75.0,
+  "spo2": 98.0,
+  "age": 30,
+  "gender": "unknown",
+  "temperature": 37.0,
+  "blood_pressure_systolic": 120,
+  "blood_pressure_diastolic": 80,
+  "respiratory_rate": 16
+} 
