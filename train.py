@@ -125,34 +125,11 @@ class TrainingPipeline:
                     stress_scores.append(float(label))
             
             # Train the model
-            self.image_detector.train(image_data, stress_scores)
-            
-            # Evaluate on a subset
-            test_size = min(100, len(image_data) // 5)
-            if len(image_data) > test_size:
-                test_data = image_data[:test_size]
-                test_labels = stress_scores[:test_size]
-                
-                predictions = []
-                for img in test_data:
-                    pred = self.image_detector.predict_stress(img)
-                    predictions.append(pred)
-                
-                # Calculate metrics
-                mse = np.mean((np.array(predictions) - np.array(test_labels)) ** 2)
-                mae = np.mean(np.abs(np.array(predictions) - np.array(test_labels)))
-                
-                metrics = {
-                    'mse': mse,
-                    'mae': mae,
-                    'rmse': np.sqrt(mse)
-                }
-            else:
-                metrics = {'mse': 0.0, 'mae': 0.0, 'rmse': 0.0}
+            metrics = self.image_detector.train(image_data, stress_scores)
             
             # Save model
-            model_path = os.path.join(self.output_dir, "image_stress_model.pth")
-            self.image_detector.save_model(model_path)
+            model_path = os.path.join(self.output_dir, "image_stress_model.pkl")
+            self.image_detector.save(model_path)
             
             self.logger.info(f"Image model training completed. MSE: {metrics['mse']:.4f}")
             return metrics
@@ -197,34 +174,11 @@ class TrainingPipeline:
                     stress_scores.append(float(label))
             
             # Train the model
-            self.audio_detector.train(audio_data, stress_scores)
-            
-            # Evaluate on a subset
-            test_size = min(100, len(audio_data) // 5)
-            if len(audio_data) > test_size:
-                test_data = audio_data[:test_size]
-                test_labels = stress_scores[:test_size]
-                
-                predictions = []
-                for audio in test_data:
-                    pred = self.audio_detector.predict_stress(audio)
-                    predictions.append(pred)
-                
-                # Calculate metrics
-                mse = np.mean((np.array(predictions) - np.array(test_labels)) ** 2)
-                mae = np.mean(np.abs(np.array(predictions) - np.array(test_labels)))
-                
-                metrics = {
-                    'mse': mse,
-                    'mae': mae,
-                    'rmse': np.sqrt(mse)
-                }
-            else:
-                metrics = {'mse': 0.0, 'mae': 0.0, 'rmse': 0.0}
+            metrics = self.audio_detector.train(audio_data, stress_scores)
             
             # Save model
             model_path = os.path.join(self.output_dir, "audio_stress_model.pkl")
-            self.audio_detector.save_model(model_path)
+            self.audio_detector.save(model_path)
             
             self.logger.info(f"Audio model training completed. MSE: {metrics['mse']:.4f}")
             return metrics
@@ -252,26 +206,12 @@ class TrainingPipeline:
             multimodal_data = training_data['multimodal']['data']
             multimodal_labels = training_data['multimodal']['labels']
             
-            # Convert string labels to numeric
-            label_encoder = LabelEncoder()
-            numeric_labels = label_encoder.fit_transform(multimodal_labels)
-            
             # Train the model
-            self.multimodal_predictor.train(multimodal_data, numeric_labels)
-            
-            # Evaluate on a subset
-            test_size = min(200, len(multimodal_data) // 5)
-            if len(multimodal_data) > test_size:
-                test_data = multimodal_data[:test_size]
-                test_labels = numeric_labels[:test_size]
-                
-                metrics = self.multimodal_predictor.evaluate(test_data, test_labels)
-            else:
-                metrics = {'accuracy': 0.0, 'precision': 0.0, 'recall': 0.0, 'f1_score': 0.0}
+            metrics = self.multimodal_predictor.train(multimodal_data, multimodal_labels)
             
             # Save model
             model_path = os.path.join(self.output_dir, "multimodal_stress_model.pkl")
-            self.multimodal_predictor.save_model(model_path)
+            self.multimodal_predictor.save(model_path)
             
             self.logger.info(f"Multimodal model training completed. Accuracy: {metrics.get('accuracy', 0):.3f}")
             return metrics

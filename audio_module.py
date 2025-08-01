@@ -4,8 +4,12 @@ Audio analysis module for stress detection system
 
 import numpy as np
 import librosa
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 from scipy import signal
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+import os
 
 class AudioStressDetector:
     """Detect stress levels from audio signals"""
@@ -15,6 +19,7 @@ class AudioStressDetector:
         self.model_loaded = False
         self.feature_extractor = None
         self.classifier = None
+        self.ml_model = None  # ML model for training
         
         # Initialize with dummy model for testing
         self._load_model()
@@ -97,8 +102,105 @@ class AudioStressDetector:
         
         return classifier
     
+    def train(self, audio_data: List[np.ndarray], labels: List[float]) -> Dict[str, float]:
+        """Train the audio stress detector"""
+        try:
+            # Extract features from all audio samples
+            features = []
+            for audio in audio_data:
+                feature_vector = self.feature_extractor(audio)
+                features.append(feature_vector)
+            
+            features = np.array(features)
+            labels = np.array(labels)
+            
+            # Train a Random Forest regressor
+            self.ml_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            self.ml_model.fit(features, labels)
+            
+            # Calculate training metrics
+            predictions = self.ml_model.predict(features)
+            mse = mean_squared_error(labels, predictions)
+            r2 = r2_score(labels, predictions)
+            
+            return {
+                'mse': mse,
+                'r2_score': r2,
+                'n_samples': len(audio_data)
+            }
+            
+        except Exception as e:
+            print(f"Error training audio model: {e}")
+            return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+    
+    def evaluate(self, test_audio: List[np.ndarray], test_labels: List[float]) -> Dict[str, float]:
+        """Evaluate the audio stress detector"""
+        try:
+            if self.ml_model is None:
+                return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+            
+            # Extract features from test audio
+            features = []
+            for audio in test_audio:
+                feature_vector = self.feature_extractor(audio)
+                features.append(feature_vector)
+            
+            features = np.array(features)
+            test_labels = np.array(test_labels)
+            
+            # Make predictions
+            predictions = self.ml_model.predict(features)
+            
+            # Calculate metrics
+            mse = mean_squared_error(test_labels, predictions)
+            r2 = r2_score(test_labels, predictions)
+            
+            return {
+                'mse': mse,
+                'r2_score': r2,
+                'n_samples': len(test_audio)
+            }
+            
+        except Exception as e:
+            print(f"Error evaluating audio model: {e}")
+            return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+    
+    def save(self, filepath: str):
+        """Save the trained model"""
+        try:
+            if self.ml_model is not None:
+                joblib.dump(self.ml_model, filepath)
+                print(f"Audio model saved to {filepath}")
+            else:
+                print("No trained model to save")
+        except Exception as e:
+            print(f"Error saving audio model: {e}")
+    
+    def load(self, filepath: str):
+        """Load a trained model"""
+        try:
+            if os.path.exists(filepath):
+                self.ml_model = joblib.load(filepath)
+                print(f"Audio model loaded from {filepath}")
+            else:
+                print(f"Model file not found: {filepath}")
+        except Exception as e:
+            print(f"Error loading audio model: {e}")
+    
     def predict_stress(self, audio: np.ndarray) -> float:
         """Predict stress level from audio"""
+        if self.ml_model is not None:
+            # Use trained ML model
+            try:
+                if audio.dtype != np.float64:
+                    audio = audio.astype(np.float64)
+                features = self.feature_extractor(audio)
+                prediction = self.ml_model.predict([features])[0]
+                return float(np.clip(prediction, 0.0, 1.0))
+            except Exception as e:
+                print(f"Error in ML prediction: {e}")
+        
+        # Fallback to dummy model
         if not self.model_loaded:
             return 0.5  # Default value if model not loaded
         

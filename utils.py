@@ -6,6 +6,8 @@ import logging
 import json
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import pandas as pd
+from fpdf import FPDF
 
 def setup_logging(level: str = 'INFO') -> logging.Logger:
     """Setup logging configuration"""
@@ -27,6 +29,107 @@ def setup_logging(level: str = 'INFO') -> logging.Logger:
         logger.addHandler(console_handler)
     
     return logger
+
+def log_session(logger: logging.Logger, session_data: Dict[str, Any]):
+    """Log session data"""
+    try:
+        logger.info(f"Session completed - Stress Level: {session_data.get('final_stress_level', 'Unknown')}")
+        logger.info(f"Confidence: {session_data.get('confidence', 0.0):.3f}")
+        logger.info(f"Timestamp: {session_data.get('timestamp', datetime.now())}")
+        
+        # Log physiological data if available
+        if 'physiological' in session_data:
+            phys = session_data['physiological']
+            logger.info(f"Physiological - HR: {phys.get('heart_rate', 0)} bpm, SpO2: {phys.get('spo2', 0)}%")
+        
+        # Log image and audio scores if available
+        if session_data.get('image_score') is not None:
+            logger.info(f"Image Score: {session_data['image_score']:.3f}")
+        
+        if session_data.get('audio_score') is not None:
+            logger.info(f"Audio Score: {session_data['audio_score']:.3f}")
+            
+    except Exception as e:
+        logger.error(f"Error logging session: {e}")
+
+def export_history(session_history: List[Dict[str, Any]], format_type: str = "csv"):
+    """Export session history to file"""
+    try:
+        if not session_history:
+            print("No session history to export")
+            return
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if format_type.lower() == "csv":
+            # Convert to DataFrame and export as CSV
+            df_data = []
+            for session in session_history:
+                row = {
+                    'timestamp': session.get('timestamp', ''),
+                    'stress_level': session.get('final_stress_level', ''),
+                    'confidence': session.get('confidence', 0.0),
+                    'heart_rate': session.get('physiological', {}).get('heart_rate', 0),
+                    'spo2': session.get('physiological', {}).get('spo2', 0),
+                    'temperature': session.get('physiological', {}).get('temperature', 0),
+                    'age': session.get('physiological', {}).get('age', 0),
+                    'image_score': session.get('image_score', 0),
+                    'audio_score': session.get('audio_score', 0)
+                }
+                df_data.append(row)
+            
+            df = pd.DataFrame(df_data)
+            filename = f"stress_history_{timestamp}.csv"
+            df.to_csv(filename, index=False)
+            print(f"Session history exported to {filename}")
+            
+        elif format_type.lower() == "pdf":
+            # Create PDF report
+            pdf = FPDF()
+            pdf.add_page()
+            
+            # Title
+            pdf.set_font('Arial', 'B', 16)
+            pdf.cell(0, 10, 'Stress Detection Session History', ln=True, align='C')
+            pdf.ln(10)
+            
+            # Summary
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, f'Total Sessions: {len(session_history)}', ln=True)
+            
+            # Stress level distribution
+            stress_counts = {'low': 0, 'medium': 0, 'high': 0}
+            for session in session_history:
+                level = session.get('final_stress_level', 'medium')
+                if level in stress_counts:
+                    stress_counts[level] += 1
+            
+            pdf.ln(5)
+            pdf.cell(0, 10, 'Stress Level Distribution:', ln=True)
+            for level, count in stress_counts.items():
+                pdf.cell(0, 10, f'{level.capitalize()}: {count}', ln=True)
+            
+            # Recent sessions
+            pdf.ln(10)
+            pdf.cell(0, 10, 'Recent Sessions:', ln=True)
+            pdf.set_font('Arial', '', 10)
+            
+            for i, session in enumerate(session_history[-5:]):  # Last 5 sessions
+                timestamp = session.get('timestamp', '')
+                stress_level = session.get('final_stress_level', 'Unknown')
+                confidence = session.get('confidence', 0.0)
+                
+                pdf.cell(0, 8, f'{i+1}. {timestamp} - {stress_level} (Confidence: {confidence:.2f})', ln=True)
+            
+            filename = f"stress_report_{timestamp}.pdf"
+            pdf.output(filename)
+            print(f"Session history exported to {filename}")
+            
+        else:
+            print(f"Unsupported export format: {format_type}")
+            
+    except Exception as e:
+        print(f"Error exporting history: {e}")
 
 def generate_session_summary(sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Generate summary statistics from session data"""

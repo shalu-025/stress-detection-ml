@@ -4,8 +4,12 @@ Image analysis module for stress detection system
 
 import numpy as np
 import cv2
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 from PIL import Image
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
+import os
 
 class ImageStressDetector:
     """Detect stress levels from facial images"""
@@ -15,6 +19,7 @@ class ImageStressDetector:
         self.model_loaded = False
         self.feature_extractor = None
         self.classifier = None
+        self.ml_model = None  # ML model for training
         
         # Initialize with dummy model for testing
         self._load_model()
@@ -68,8 +73,109 @@ class ImageStressDetector:
         
         return classifier
     
+    def train(self, images: List[np.ndarray], labels: List[float]) -> Dict[str, float]:
+        """Train the image stress detector"""
+        try:
+            # Extract features from all images
+            features = []
+            for image in images:
+                if image.dtype != np.uint8:
+                    image = (image * 255).astype(np.uint8)
+                feature_vector = self.feature_extractor(image)
+                features.append(feature_vector)
+            
+            features = np.array(features)
+            labels = np.array(labels)
+            
+            # Train a Random Forest regressor
+            self.ml_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            self.ml_model.fit(features, labels)
+            
+            # Calculate training metrics
+            predictions = self.ml_model.predict(features)
+            mse = mean_squared_error(labels, predictions)
+            r2 = r2_score(labels, predictions)
+            
+            return {
+                'mse': mse,
+                'r2_score': r2,
+                'n_samples': len(images)
+            }
+            
+        except Exception as e:
+            print(f"Error training image model: {e}")
+            return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+    
+    def evaluate(self, test_images: List[np.ndarray], test_labels: List[float]) -> Dict[str, float]:
+        """Evaluate the image stress detector"""
+        try:
+            if self.ml_model is None:
+                return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+            
+            # Extract features from test images
+            features = []
+            for image in test_images:
+                if image.dtype != np.uint8:
+                    image = (image * 255).astype(np.uint8)
+                feature_vector = self.feature_extractor(image)
+                features.append(feature_vector)
+            
+            features = np.array(features)
+            test_labels = np.array(test_labels)
+            
+            # Make predictions
+            predictions = self.ml_model.predict(features)
+            
+            # Calculate metrics
+            mse = mean_squared_error(test_labels, predictions)
+            r2 = r2_score(test_labels, predictions)
+            
+            return {
+                'mse': mse,
+                'r2_score': r2,
+                'n_samples': len(test_images)
+            }
+            
+        except Exception as e:
+            print(f"Error evaluating image model: {e}")
+            return {'mse': float('inf'), 'r2_score': 0.0, 'n_samples': 0}
+    
+    def save(self, filepath: str):
+        """Save the trained model"""
+        try:
+            if self.ml_model is not None:
+                joblib.dump(self.ml_model, filepath)
+                print(f"Image model saved to {filepath}")
+            else:
+                print("No trained model to save")
+        except Exception as e:
+            print(f"Error saving image model: {e}")
+    
+    def load(self, filepath: str):
+        """Load a trained model"""
+        try:
+            if os.path.exists(filepath):
+                self.ml_model = joblib.load(filepath)
+                print(f"Image model loaded from {filepath}")
+            else:
+                print(f"Model file not found: {filepath}")
+        except Exception as e:
+            print(f"Error loading image model: {e}")
+    
     def predict_stress(self, image: np.ndarray) -> float:
         """Predict stress level from image"""
+        if self.ml_model is not None:
+            # Use trained ML model
+            try:
+                if image.dtype != np.uint8:
+                    image = (image * 255).astype(np.uint8)
+                features = self.feature_extractor(image)
+                prediction = self.ml_model.predict([features])[0]
+                return float(np.clip(prediction, 0.0, 1.0))
+            except Exception as e:
+                print(f"Error in ML prediction: {e}")
+        
+        # Fallback to dummy model
         if not self.model_loaded:
             return 0.5  # Default value if model not loaded
         

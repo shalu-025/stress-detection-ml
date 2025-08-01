@@ -1,0 +1,19 @@
+{
+  "image_model": {
+    "mse": 2.0000000000000036e-07,
+    "r2_score": 0.9999992,
+    "n_samples": 500
+  },
+  "audio_model": {
+    "mse": 0.0,
+    "r2_score": 1.0,
+    "n_samples": 500
+  },
+  "multimodal_model": {
+    "mse": 0.01999593219838426,
+    "r2_score": 0.8337496075826909,
+    "n_samples": 500
+  },
+  "training_timestamp": "2025-08-01T06:22:49.016083",
+  "num_samples": 500
+}
